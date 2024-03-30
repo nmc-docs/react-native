@@ -71,3 +71,13 @@ export { ChevronLeftIcon };
   onPress={() => GlobalNavigation.goBack()}
 />
 ```
+
+:::tip
+
+Cách custom width, height, color của icon svg trong react native
+
+- Vào file .svg, xóa thuộc tính width, height trong tag `<svg>`
+- Xem thuộc tính chứa màu của icon là gì (thường là stroke, fill), thay bằng giá trị "currentColor".
+- Cuối cùng có thể custom component svg thông qua style={{width, height, color}}
+
+:::
