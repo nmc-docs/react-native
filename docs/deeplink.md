@@ -255,22 +255,41 @@ npx uri-scheme open "myapp://setting" --android
 
 ## Sử dụng deeplink trong Push Notification
 
-- Khi có một thông báo đến app, và người dùng click vào nó, app mở và sẽ điều hướng đúng đến một màn hình cụ thể nào đó.
+- Notification trong react native có 3 chế độ:
+  - **Foreground**: Đây là trạng thái khi ứng dụng đang mở và đang hoạt động trên màn hình chính
+  - **Background**: Trong trạng thái này, ứng dụng đang chạy ở nền, tức là không hiển thị trên màn hình chính nhưng vẫn đang hoạt động. Điều này thường xảy ra khi người dùng nhấn nút "Home" trên thiết bị hoặc chuyển sang ứng dụng khác thông qua trình chuyển đổi ứng dụng.
+  - **Quit**: Đây là trạng thái khi ứng dụng không hoạt động hoặc đã bị đóng
+- Khi app đang ở chế độ **Foreground**, theo mặc định, Firebase sẽ không hiển thị thông báo, do đó, ta phải sử dụng thư viện là **notifee** để xử lý:
+
+```bash
+npm install @notifee/react-native
+```
+
 - Ta sửa lại file **src/configs/deeplink.config.ts** như sau:
 
 ```ts
 import { APP_BASE_URI } from "@env";
 import { LinkingOptions } from "@react-navigation/native";
-import { ERootScreenList } from "@src/navigators/screens-name";
+import notifee, { AndroidImportance, EventType } from "@notifee/react-native";
+
 import { buildDeepLinkFromNotificationData } from "@src/utils/deeplink.util";
 import { Linking } from "react-native";
 import messaging from "@react-native-firebase/messaging";
+import {
+  EAuthScreenList,
+  ERootScreenList,
+} from "@src/constants/screen-constants";
+import { IRemoteMessageData } from "@src/interfaces/push-notification.interface";
 
 const deepLinksConfig = {
   screens: {
     [ERootScreenList.HOME]: "home",
-    [ERootScreenList.CONTACT]: "contact",
-    [ERootScreenList.SETTING]: "setting",
+    [ERootScreenList.AUTH_NAVIGATOR]: {
+      screens: {
+        [EAuthScreenList.LOGIN]: "login",
+        [EAuthScreenList.SIGNUP]: "signup",
+      },
+    },
   },
 };
 
@@ -285,9 +304,12 @@ const linking: LinkingOptions<{}> = {
 
     //getInitialNotification: When the application is opened from a quit state.
     const message = await messaging().getInitialNotification();
-    if (message?.data?.screen) {
+    if (message?.data) {
+      const messageData: IRemoteMessageData = message.data;
+      const { navigationKey, navigationParamsInJSON } = messageData;
       const deeplinkURL = buildDeepLinkFromNotificationData(
-        message.data.screen
+        navigationKey,
+        navigationParamsInJSON
       );
       if (typeof deeplinkURL === "string") {
         return deeplinkURL;
@@ -302,19 +324,61 @@ const linking: LinkingOptions<{}> = {
 
     //onNotificationOpenedApp: When the application is running, but in the background.
     const unsubscribe = messaging().onNotificationOpenedApp((remoteMessage) => {
-      if (remoteMessage?.data?.screen) {
-        const url = buildDeepLinkFromNotificationData(
-          remoteMessage.data.screen
+      if (remoteMessage?.data) {
+        const messageData: IRemoteMessageData = remoteMessage.data;
+        const { navigationKey, navigationParamsInJSON } = messageData;
+        const deeplinkURL = buildDeepLinkFromNotificationData(
+          navigationKey,
+          navigationParamsInJSON
         );
-        if (typeof url === "string") {
-          listener(url);
+        if (typeof deeplinkURL === "string") {
+          listener(deeplinkURL);
         }
       }
+    });
+
+    //onForegroundEvent: When the application is in foreground.
+    const notifeeForegroundEvent = notifee.onForegroundEvent(
+      ({ detail, type }) => {
+        if (type === EventType.PRESS) {
+          if (detail.notification?.data) {
+            const messageData: IRemoteMessageData = detail.notification.data;
+            const { navigationKey, navigationParamsInJSON } = messageData;
+            const deeplinkURL = buildDeepLinkFromNotificationData(
+              navigationKey,
+              navigationParamsInJSON
+            );
+            if (typeof deeplinkURL === "string") {
+              listener(deeplinkURL);
+            }
+          }
+        }
+      }
+    );
+
+    //Display notification when the application is in foreground.
+    messaging().onMessage(async (remoteMessage) => {
+      const channelId = await notifee.createChannel({
+        id: "default",
+        name: "Default Channel",
+        sound: "notification",
+        importance: AndroidImportance.HIGH,
+      });
+      await notifee.displayNotification({
+        title: remoteMessage.notification?.title || "",
+        body: remoteMessage.notification?.body || "",
+        android: {
+          channelId,
+          smallIcon: "ic_notification",
+        },
+        data: remoteMessage.data,
+      });
     });
 
     return () => {
       linkingSubscription.remove();
       unsubscribe();
+      notifeeForegroundEvent();
     };
   },
 };
@@ -326,41 +390,31 @@ export default linking;
 
 ```js
 import { APP_BASE_URI } from "@env";
-import { EPushNotificationScreenNameNavigation } from "@src/constants/enum";
 
 const constructDeeplinkURI = (pathname: string) => {
   return `${APP_BASE_URI}${pathname}`;
 };
 
-export const buildDeepLinkFromNotificationData = (data: any) => {
-  const screenData = JSON.parse(data);
-  if (!screenData) {
+export const buildDeepLinkFromNotificationData = (
+  navigationKey?: string,
+  navigationParamsInJSON?: string
+) => {
+  if (!navigationKey) {
     return null;
   }
-  const screenName = screenData?.name;
-  const screenParams = screenData?.params;
-
-  if (screenName === EPushNotificationScreenNameNavigation.HOME) {
-    return constructDeeplinkURI("home");
-  }
-
-  if (screenName === EPushNotificationScreenNameNavigation.CONTACT) {
-    return constructDeeplinkURI("contact");
-  }
-  if (screenName === EPushNotificationScreenNameNavigation.SETTING) {
-    return constructDeeplinkURI("setting");
+  if (navigationKey === "signup") {
+    return constructDeeplinkURI(navigationKey);
   }
   return null;
 };
 ```
 
-- File **src/constants/enum.ts**:
+- File **src/interfaces/push-notification.interface.ts**:
 
 ```ts
-export enum EPushNotificationScreenNameNavigation {
-  HOME = "Home",
-  CONTACT = "Contact",
-  SETTING = "Setting",
+export interface IRemoteMessageData {
+  navigationKey?: string;
+  navigationParamsInJSON?: string;
 }
 ```
 
