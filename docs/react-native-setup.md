@@ -66,16 +66,12 @@ sdkmanager --licenses
 
 :::note
 
-- Ta sẽ kết nối thiết bị Android thông qua dây cáp USB và ứng dụng Vysor.
+- Ta sẽ kết nối thiết bị Android thông qua dây cáp USB và ScrcPy.
 - Xem thêm: Cách kết nối Laptop/PC với thiết bị Android thông qua Wifi (kết nối không cần dùng dây cáp USB) ở bên dưới.
 
 :::
 
-### Trên thiết bị Android
-
-- Trên thiết bị Android, vào CH Play và tải ứng dụng có tên **Vysor - Android control on PC**:
-
-![1702889290838](image/react-native-setup/1702889290838.png)
+### Thiết lập trên thiết bị Android
 
 - Trên điện thoại, vào **Cài đặt** -> **Giới thiệu điện thoại** và nhấn liên tục vào phiên bản máy để mở chế độ nhà phát triển:
 
@@ -87,13 +83,11 @@ sdkmanager --licenses
 
 ### Trên PC hoặc laptop
 
-- Trên máy tính, tải và cài đặt ứng dụng [Vysor](https://www.vysor.io/):
+- Cài đặt scrcpy thông qua lệnh:
 
-![1702888815446](image/react-native-setup/1702888815446.png)
-
-- Sau khi cài đặt thành công, mở ứng dụng Vysor lên, nếu ta đã cắm dây cáp USB và bật chế độ Debug via USB trên điện thoại, thì sẽ như hình dưới. Bấm vào nút Play (màu đỏ) để mở thiết bị Android trên máy tính:
-
-![1702891361660](image/react-native-setup/1702891361660.png)
+```bash
+choco install -y scrcpy
+```
 
 - Sử dụng lệnh sau để kiểm tra các devices hiện đang kết nối với máy tính:
 
@@ -102,6 +96,12 @@ adb devices
 ```
 
 ![1702890991806](image/react-native-setup/1702890991806.png)
+
+- Sau đó chiếu màn hình điện thoại lên máy tính bằng lệnh sau trên CMD hoặc click vào shortcut của scrcpy:
+
+```bash
+scrcpy
+```
 
 ## Khởi tạo project React native
 

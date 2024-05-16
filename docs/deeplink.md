@@ -44,7 +44,7 @@ npx uri-scheme add <SCHEME_URI_NAME> --android
         <action android:name="android.intent.action.VIEW" />
         <category android:name="android.intent.category.DEFAULT" />
         <category android:name="android.intent.category.BROWSABLE" />
-        <data android:scheme="mychat" />
+        <data android:scheme="mychat" /> <!-- This is SCHEME_URI_NAME -->
     </intent-filter>
 </activity>
 ```
